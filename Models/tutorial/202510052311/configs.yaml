@@ -1,0 +1,10 @@
+batch_size: 64
+dataset_path: Datasets\tutorial
+height: 50
+learning_rate: 0.002
+max_text_length: 5
+model_path: Models/tutorial\202510052311
+train_epochs: 2000
+train_workers: 20
+vocab: 5enbxcmw38gpy2f46d7
+width: 200
