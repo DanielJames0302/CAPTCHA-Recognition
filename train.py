@@ -3,9 +3,9 @@ try: [tf.config.experimental.set_memory_growth(gpu, True) for gpu in tf.config.e
 except: pass
 
 # Optimize CPU performance by using all available cores
-tf.config.threading.set_inter_op_parallelism_threads(0)  # Use all available cores for operations between ops
-tf.config.threading.set_intra_op_parallelism_threads(0)  # Use all available cores for operations within ops
-print("CPU threading optimization enabled - using all available CPU cores")
+#tf.config.threading.set_inter_op_parallelism_threads(0)  # Use all available cores for operations between ops
+#tf.config.threading.set_intra_op_parallelism_threads(0)  # Use all available cores for operations within ops
+#print("CPU threading optimization enabled - using all available CPU cores")
 
 from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 
@@ -54,7 +54,7 @@ data_provider = DataProvider(
     batch_size=configs.batch_size,
     data_preprocessors=[ImageReader(CVImage)],
     transformers=[
-        AspectRatioImageResizer(configs.width, configs.height, left_align=True),
+        ImageResizer(configs.width, configs.height),
         LabelIndexer(configs.vocab),
         LabelPadding(max_word_length=configs.max_text_length, padding_value=len(configs.vocab))
         ],
