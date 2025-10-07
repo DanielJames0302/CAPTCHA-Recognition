@@ -10,7 +10,9 @@
 
 ### Configuration
 The training configuration is managed in `configs.py`. Key parameters include:
-- `dataset_path`: Path to your image dataset (default: `Datasets/tutorial`)
+- `dataset_path`: Path to your image dataset (default: `Datasets/tutorial`). If train_path and val_path are not specified, data will be split in 9:1 ratio.
+- `dataset_train_path`: Path to your training dataset, optional
+- `dataset_val_path`: Path to your validation dataset, optional
 - `model_path`: Where to save the trained model
 - `height`, `width`: Input image dimensions (default: 50x200)
 - `batch_size`: Training batch size (default: 128)
@@ -42,6 +44,9 @@ During training, the following files will be created in the model directory:
 - `train.csv`: Training dataset split
 - `val.csv`: Validation dataset split
 - `logs/`: TensorBoard logs for monitoring training
+
+### Resuming Training
+To resume a training, simply specify an existing model path.
 
 ## Testing with Pre-trained Models
 

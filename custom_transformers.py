@@ -2,90 +2,87 @@ import cv2
 import numpy as np
 from mltu.annotations.images import CVImage
 
-class AspectRatioImageResizer:
-    """Custom transformer for mltu that maintains aspect ratio with padding"""
+
+class GrayscaleTransformer:
+    """Custom transformer that converts RGB images to grayscale"""
     
-    def __init__(self, width, height, pad_color=(0, 0, 0), left_align=True):
-        self.width = width
-        self.height = height
-        self.pad_color = pad_color
-        self.left_align = left_align
+    def __init__(self, keep_3_channels=True):
+        """
+        Args:
+            keep_3_channels (bool): If True, converts to grayscale but keeps 3 channels
+                                  If False, outputs single channel grayscale
+        """
+        self.keep_3_channels = keep_3_channels
     
     def __call__(self, image, label):
         """
-        Process image and return resized version with label unchanged.
+        Convert image to grayscale and return with label unchanged.
         
         Args:
-            image: Input image (numpy array)
+            image: Input image (CVImage or numpy array)
             label: Text label (unchanged)
         
         Returns:
-            Tuple of (processed_image, label)
+            Tuple of (grayscale_image, label)
         """
-        processed_image = self.resize_with_padding(image)
-        return processed_image, label
-    
-    def resize_with_padding(self, image):
-        # Convert CVImage to numpy array
-        image = image.numpy()
-
-        """Resize while maintaining aspect ratio"""
-        h, w = image.shape[:2]
-        
-        if self.left_align:
-            # Scale to fit height, then pad width
-            scale = self.height / h
-            new_w = int(w * scale)
-            new_h = self.height
+        # Handle CVImage objects
+        if hasattr(image, 'numpy'):
+            image_array = image.numpy()
+        else:
+            image_array = image
             
-            # If too wide, scale to fit width
-            if new_w > self.width:
-                scale = self.width / w
-                new_w = self.width
-                new_h = int(h * scale)
+        # Convert to grayscale
+        if len(image_array.shape) == 3 and image_array.shape[2] == 3:
+            # Convert RGB to grayscale using OpenCV
+            gray = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
+            
+            if self.keep_3_channels:
+                # Convert back to 3-channel format
+                grayscale_image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+            else:
+                # Keep as single channel, add channel dimension
+                grayscale_image = np.expand_dims(gray, axis=-1)
         else:
-            # Scale to fit within both dimensions
-            scale = min(self.width / w, self.height / h)
-            new_w = int(w * scale)
-            new_h = int(h * scale)
+            # Already grayscale or wrong format
+            grayscale_image = image_array
         
-        # Resize image
-        resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        
-        # Create padded image
-        padded = np.full((self.height, self.width, 3), self.pad_color, dtype=np.uint8)
-        
-        if self.left_align:
-            # Left-align for text
-            y_offset = (self.height - new_h) // 2
-            padded[y_offset:y_offset+new_h, 0:new_w] = resized
+        # Convert back to CVImage if input was CVImage
+        if hasattr(image, 'numpy'):
+            result_image = CVImage(grayscale_image)
         else:
-            # Center the image
-            y_offset = (self.height - new_h) // 2
-            x_offset = (self.width - new_w) // 2
-            padded[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
-        
-        return padded
+            result_image = grayscale_image
+            
+        return result_image, label
 
-
-def test_resizer():
-    """Simple test to verify AspectRatioImageResizer works"""
+def test_grayscale():
+    """Test the GrayscaleTransformer"""
     import numpy as np
     
-    # Create a test image (100x200 pixels)
+    # Create a test RGB image
     test_image = np.random.randint(0, 255, (100, 200, 3), dtype=np.uint8)
+    test_label = "test123"
     
-    # Test the resizer
-    resizer = AspectRatioImageResizer(400, 80, left_align=True)
-    result_image, result_label = resizer(test_image, "")
+    # Test with 3 channels output
+    transformer_3ch = GrayscaleTransformer(keep_3_channels=True)
+    result_image_3ch, result_label = transformer_3ch(test_image, test_label)
     
-    # Verify output
     print(f"Input shape: {test_image.shape}")
-    print(f"Output shape: {result_image.shape}")
+    print(f"Grayscale (3ch) output shape: {result_image_3ch.shape}")
+    print(f"Label unchanged: {result_label}")
     
-    assert result_image.shape == (80, 400, 3), "Wrong output shape!"
-    print("Test passed!")
+    # Test with 1 channel output
+    transformer_1ch = GrayscaleTransformer(keep_3_channels=False)
+    result_image_1ch, result_label = transformer_1ch(test_image, test_label)
+    
+    print(f"Grayscale (1ch) output shape: {result_image_1ch.shape}")
+    
+    # Verify shapes
+    assert result_image_3ch.shape == (100, 200, 3), "Wrong 3-channel output shape!"
+    assert result_image_1ch.shape == (100, 200, 1), "Wrong 1-channel output shape!"
+    assert result_label == test_label, "Label was modified!"
+    
+    print("Grayscale transformer test passed!")
 
 
 if __name__ == "__main__":
-    test_resizer()
+    test_grayscale()
