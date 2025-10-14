@@ -27,9 +27,7 @@ from model import train_model
 from configs import ModelConfigs
 
 import os
-from urllib.request import urlopen
-from io import BytesIO
-from zipfile import ZipFile
+# Removed unused imports: urlopen, BytesIO, ZipFile
 
 configs = ModelConfigs()
 
@@ -37,49 +35,27 @@ configs = ModelConfigs()
 vocab, max_len = set(), 0
 train_data_provider, val_data_provider = None, None
 
-# If train and val directories exist, load datasets from there, else load from main dataset directory and split
-if os.path.exists(configs.dataset_train_path) and os.path.exists(configs.dataset_val_path):
-    train_dataset = data_helper.load_dataset_from_path(configs.dataset_train_path)
-    val_dataset = data_helper.load_dataset_from_path(configs.dataset_val_path)
+dataset = data_helper.load_dataset_from_path(configs.dataset_path)
     
-    # Build vocab from both train and val datasets
-    for file_path, label in train_dataset + val_dataset:
-        vocab.update(list(label))
-        max_len = max(max_len, len(label))
-
-    # Save vocab and maximum text length to configs
-    configs.vocab = "".join(sorted(vocab))
-    configs.max_text_length = max_len
-    configs.save()
-
-    train_data_provider = data_helper.CreateDataProvider(train_dataset, configs)
-    val_data_provider = data_helper.CreateDataProvider(val_dataset, configs)
-else:
-    dataset = data_helper.load_dataset_from_path(configs.dataset_path)
+# Build vocab from single dataset
+for file_path, label in dataset:
+    vocab.update(list(label))
+    max_len = max(max_len, len(label))
     
-    # Build vocab from single dataset
-    for file_path, label in dataset:
-        vocab.update(list(label))
-        max_len = max(max_len, len(label))
-    
-    # Save vocab and maximum text length to configs
-    configs.vocab = "".join(sorted(vocab))
-    configs.max_text_length = max_len
-    configs.save()
+# Save vocab and maximum text length to configs
+configs.vocab = "".join(sorted(vocab))
+configs.max_text_length = max_len
+configs.save()
 
-    data_provider = data_helper.CreateDataProvider(dataset, configs)
-    # Split the dataset into training and validation sets
-    train_data_provider, val_data_provider = data_provider.split(split = 0.9)
+data_provider = data_helper.CreateDataProvider(dataset, configs)
+# Split the dataset into training and validation sets
+train_data_provider, val_data_provider = data_provider.split(split = 0.9)
 
 # Augment training data with random brightness, rotation and erode/dilate
 train_data_provider.augmentors = [RandomBrightness(), RandomRotate(), RandomErodeDilate()]
 
 # Define path to save the model
 os.makedirs(configs.model_path, exist_ok=True)
-
-# Save training and validation datasets as csv files
-train_data_provider.to_csv(os.path.join(configs.model_path, "train.csv"))
-val_data_provider.to_csv(os.path.join(configs.model_path, "val.csv"))
 
 model = None
 
@@ -95,16 +71,16 @@ if os.path.exists(model_file_path):
         )
         print("Model loaded successfully - resuming training")
     except Exception as e:
-            print(f"Failed to load existing model: {e}")
+        print(f"Failed to load existing model: {e}")
 
 else:
-        # Creating TensorFlow model architecture
-        model = train_model(
-            input_dim = (configs.height, configs.width, 3),
-            output_dim = len(configs.vocab),
-        )
-        
-        print("New model created")    
+    # Creating TensorFlow model architecture
+    model = train_model(
+        input_dim = (configs.height, configs.width, 3),
+        output_dim = len(configs.vocab),
+    )
+    
+    print("New model created")    
 
 if model:
     # Compile the model
@@ -112,7 +88,8 @@ if model:
         optimizer=tf.keras.optimizers.Adam(learning_rate=configs.learning_rate), 
         loss=CTCloss(), 
         metrics=[CWERMetric(padding_token=len(configs.vocab))],
-        run_eagerly=False
+        run_eagerly=False,
+        steps_per_execution=64,
     )
 
     # Print model summary
@@ -131,5 +108,9 @@ if model:
         train_data_provider,
         validation_data=val_data_provider,
         epochs=configs.train_epochs,
-        callbacks=[earlystopper, checkpoint, trainLogger, reduceLROnPlat, tb_callback, model2onnx]
+        callbacks=[earlystopper, checkpoint, trainLogger, reduceLROnPlat, tb_callback, model2onnx],
+        validation_freq=5,
     )
+
+    train_data_provider.to_csv(os.path.join(configs.model_path, "train.csv"))
+    val_data_provider.to_csv(os.path.join(configs.model_path, "val.csv"))
