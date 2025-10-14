@@ -1,0 +1,3 @@
+tensorflow==2.19
+mltu
+tf2onnx
