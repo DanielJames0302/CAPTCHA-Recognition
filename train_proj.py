@@ -8,9 +8,14 @@ from configs_proj import ModelConfigs
 
 # Import from the new utils directory
 from utils.data_provider import DataProvider, ImageReader, ImageResizer, LabelIndexer, LabelPadding
-from utils.losses import CTCloss
-from utils.callbacks import Model2onnx, TrainLogger
-from utils.metrics import CWERMetric
+#from utils.losses import CTCloss
+#from utils.callbacks import Model2onnx, TrainLogger
+#from utils.metrics import CWERMetric
+
+
+from mltu.tensorflow.losses import CTCloss
+from mltu.tensorflow.callbacks import Model2onnx, TrainLogger
+from mltu.tensorflow.metrics import CWERMetric
 
 # GPU memory growth
 try:
@@ -35,16 +40,7 @@ configs.max_text_length = max_len
 configs.save()
 
 # Create data provider
-data_provider = DataProvider(
-    dataset=dataset,
-    batch_size=configs.batch_size,
-    data_preprocessors=[ImageReader()],
-    transformers=[
-        ImageResizer(configs.width, configs.height, keep_aspect_ratio=True, padding_color=(255, 255, 255)),
-        LabelIndexer(configs.vocab),
-        LabelPadding(max_word_length=configs.max_text_length, padding_value=len(configs.vocab))
-    ]
-)
+data_provider = data_helper_proj.CreateDataProvider(dataset, configs)
 
 # Split dataset
 train_data_provider, val_data_provider = data_provider.split(split=0.9)

@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --output=logs/slurm-%j.out
 #SBATCH --error=logs/slurm_error_%j.err
-#SBATCH --job-name=nus-cs4243-project
-#SBATCH --mail-user=e1129786@comp.nus.edu.sg
+#SBATCH --job-name=ray-4243
+#SBATCH --mail-user=e1505950@comp.nus.edu.sg
 #SBATCH --partition=gpu-long
 #SBATCH --gres=gpu:a100-40:1     # or nv:1 -C cuda75
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 
 export TF_XLA_FLAGS="--tf_xla_auto_jit=0"     # disable XLA JIT (layout transposes)
 export TF_ENABLE_ONEDNN_OPTS=0               # avoid aggressive layout rewrites
@@ -13,7 +13,7 @@ export TF_CUDNN_USE_FRONTEND=0               # bypass cuDNN frontend heuristics
 export TF_DETERMINISTIC_OPS=1                # (optional) stable kernels
 export TF_CUDNN_DETERMINISTIC=1              # (optional) stable kernels
 export TF_FORCE_GPU_ALLOW_GROWTH=true        # avoid full preallocation
-cd "/home/m/man0302/CS4243/CS4243-CAPTCHA-main" # change to your project directory
+cd "/home/r/rayche/CS4243-CAPTCHA" # change to your project directory
 
 # Activate virtual environment (adjust path as needed)
 source cs4243-captcha/bin/activate
@@ -31,14 +31,14 @@ export TF_FORCE_GPU_ALLOW_GROWTH=true    # avoid full GPU memory pre-allocation
 # export XLA_FLAGS=--xla_gpu_strict_conv_algorithm_picker=false  # uncomment if you hit rare cuDNN alg issues
 
 # Check if we're in the right directory
-if [ ! -f "train.py" ]; then
-    echo "Error: train.py not found. Please run this script from the assignment directory."
+if [ ! -f "train_proj.py" ]; then
+    echo "Error: train_proj.py not found. Please run this script from the assignment directory."
     exit 1
 fi
 
 # Quick repo sanity check
-if [ ! -f "train.py" ]; then
-  echo "ERROR: train.py not found in $PROJECT_DIR"
+if [ ! -f "train_proj.py" ]; then
+  echo "ERROR: train_proj.py not found in $PROJECT_DIR"
   exit 1
 fi
 
@@ -59,7 +59,7 @@ date
 # NOTE: training configuration is controlled in configs.py.
 # If you want to change dataset_path/model_path, edit configs.py before submitting.
 # (This script intentionally does not pass CLI flags because the repo doesn't use them.)
-srun --exclusive -N1 -n1 python train.py
+srun --exclusive -N1 -n1 python train_proj.py
 
 TRAIN_EXIT=$?
 date

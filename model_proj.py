@@ -2,7 +2,8 @@ from keras import layers
 from keras.models import Model
 
 # Updated import path
-from utils.model_utils import residual_block
+#from utils.model_utils import residual_block
+from mltu.tensorflow.model_utils import residual_block
 
 
 def train_model(input_dim, output_dim, activation="leaky_relu", dropout=0.2):
