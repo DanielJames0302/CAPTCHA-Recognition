@@ -1,8 +1,8 @@
 import os
 from datetime import datetime
 
-from mltu.configs import BaseModelConfigs
-
+# Updated import path
+from utils.configs import BaseModelConfigs
 
 class ModelConfigs(BaseModelConfigs):
     def __init__(self):
@@ -20,4 +20,3 @@ class ModelConfigs(BaseModelConfigs):
         self.learning_rate = 1e-3
         self.train_epochs = 2000
         self.train_workers = 20
-

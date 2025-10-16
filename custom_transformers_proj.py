@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-from mltu.annotations.images import CVImage
-
 
 class GrayscaleTransformer:
     """Custom transformer that converts RGB images to grayscale"""
@@ -14,49 +12,36 @@ class GrayscaleTransformer:
         """
         self.keep_3_channels = keep_3_channels
     
-    def __call__(self, image, label):
+    def __call__(self, image: np.ndarray, label: str):
         """
         Convert image to grayscale and return with label unchanged.
         
         Args:
-            image: Input image (CVImage or numpy array)
+            image: Input image as a NumPy array
             label: Text label (unchanged)
         
         Returns:
             Tuple of (grayscale_image, label)
         """
-        # Handle CVImage objects
-        if hasattr(image, 'numpy'):
-            image_array = image.numpy()
-        else:
-            image_array = image
-            
         # Convert to grayscale
-        if len(image_array.shape) == 3 and image_array.shape[2] == 3:
-            # Convert RGB to grayscale using OpenCV
-            gray = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            # Convert BGR to grayscale using OpenCV
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             
             if self.keep_3_channels:
-                # Convert back to 3-channel format
+                # Convert back to 3-channel format (e.g., for models expecting 3 channels)
                 grayscale_image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
             else:
-                # Keep as single channel, add channel dimension
+                # Keep as single channel and add a channel dimension
                 grayscale_image = np.expand_dims(gray, axis=-1)
         else:
-            # Already grayscale or wrong format
-            grayscale_image = image_array
-        
-        # Convert back to CVImage if input was CVImage
-        if hasattr(image, 'numpy'):
-            result_image = CVImage(grayscale_image)
-        else:
-            result_image = grayscale_image
+            # If already grayscale or not a 3-channel image, do nothing
+            grayscale_image = image
             
-        return result_image, label
+        return grayscale_image, label
 
 def test_grayscale():
     """Test the GrayscaleTransformer"""
-    import numpy as np
     
     # Create a test RGB image
     test_image = np.random.randint(0, 255, (100, 200, 3), dtype=np.uint8)
