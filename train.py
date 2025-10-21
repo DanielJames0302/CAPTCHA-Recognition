@@ -35,27 +35,57 @@ configs = ModelConfigs()
 vocab, max_len = set(), 0
 train_data_provider, val_data_provider = None, None
 
-dataset = data_helper.load_dataset_from_path(configs.dataset_path)
-    
-# Build vocab from single dataset
-for file_path, label in dataset:
-    vocab.update(list(label))
-    max_len = max(max_len, len(label))
-    
-# Save vocab and maximum text length to configs
-configs.vocab = "".join(sorted(vocab))
-configs.max_text_length = max_len
-configs.save()
+if configs.use_test_set_for_val:
+    # Use test set as validation set during training
+    if os.path.exists(configs.dataset_path) and os.path.exists(configs.dataset_test_path):
+        train_dataset = data_helper.load_dataset_from_path(configs.dataset_path)
+        val_dataset = data_helper.load_dataset_from_path(configs.dataset_test_path)
 
-data_provider = data_helper.CreateDataProvider(dataset, configs)
-# Split the dataset into training and validation sets
-train_data_provider, val_data_provider = data_provider.split(split = 0.9)
+        # Build vocab from both train and val datasets
+        for file_path, label in train_dataset + val_dataset:
+            vocab.update(list(label))
+            max_len = max(max_len, len(label))
 
+        # Save vocab and maximum text length to configs
+        configs.vocab = "".join(sorted(vocab))
+        configs.max_text_length = max_len
+        configs.save()
+
+        train_data_provider = data_helper.CreateDataProvider(train_dataset, configs)
+        val_data_provider = data_helper.CreateDataProvider(val_dataset, configs)
+    else:
+        print("Train/Test directories not found. Please ensure the dataset directories exist.")
+        exit(1)
+elif os.path.exists(configs.dataset_path):
+    # Use a single dataset and split into train/val sets
+    dataset = data_helper.load_dataset_from_path(configs.dataset_path)
+
+    # Build vocab from single dataset
+    for file_path, label in dataset:
+        vocab.update(list(label))
+        max_len = max(max_len, len(label))
+    
+    # Save vocab and maximum text length to configs
+    configs.vocab = "".join(sorted(vocab))
+    configs.max_text_length = max_len
+    configs.save()
+
+    data_provider = data_helper.CreateDataProvider(dataset, configs)
+    # Split the dataset into training and validation sets
+    train_data_provider, val_data_provider = data_provider.split(split = 0.9)
+else:
+    print("Train directory not found. Please ensure the dataset directory exists.")
+    exit(1)
+    
 # Augment training data with random brightness, rotation and erode/dilate
 train_data_provider.augmentors = [RandomBrightness(), RandomRotate(), RandomErodeDilate()]
 
 # Define path to save the model
 os.makedirs(configs.model_path, exist_ok=True)
+
+# Save training and validation datasets as csv files
+train_data_provider.to_csv(os.path.join(configs.model_path, "train.csv"))
+val_data_provider.to_csv(os.path.join(configs.model_path, "val.csv"))
 
 model = None
 
@@ -111,6 +141,3 @@ if model:
         callbacks=[earlystopper, checkpoint, trainLogger, reduceLROnPlat, tb_callback, model2onnx],
         validation_freq=5,
     )
-
-    train_data_provider.to_csv(os.path.join(configs.model_path, "train.csv"))
-    val_data_provider.to_csv(os.path.join(configs.model_path, "val.csv"))
