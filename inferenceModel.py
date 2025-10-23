@@ -5,6 +5,8 @@ import numpy as np
 from mltu.inferenceModel import OnnxInferenceModel
 from mltu.utils.text_utils import ctc_decoder, get_cer, get_wer
 
+from test_accuracy import test_accuracy
+
 class ImageToWordModel(OnnxInferenceModel):
     def __init__(self, char_list: typing.Union[str, list], *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -22,6 +24,7 @@ class ImageToWordModel(OnnxInferenceModel):
         return text
 
 # Run test dataset without training
+# compute character recognition rate and word recognition rate for each epoch
 if __name__ == "__main__":
     import pandas as pd
     from tqdm import tqdm
@@ -33,19 +36,25 @@ if __name__ == "__main__":
 
     df = pd.read_csv("Models/02_captcha_to_text/202510041220/val.csv").values.tolist()
 
-    accum_cer = []
-    accum_wer = []
+
+
+    accum_char_accuracy = []
+    accum_word_accuracy = []
     for image_path, label in tqdm(df):
         image = cv2.imread(image_path.replace("\\", "/"))
 
+        if image is None:
+            print(f"Image not found: {image_path}")
+            continue
+
         prediction_text = model.predict(image)
 
-        cer = get_cer(prediction_text, label)
-        wer = get_wer(prediction_text, label)
-        print(f"Image: {image_path}, Label: {label}, Prediction: {prediction_text}, CER: {cer:.3f}, WER: {wer:.3f}")
+        char_accuracy, word_accuracy = test_accuracy(prediction_text, label)
 
-        accum_cer.append(cer)
-        accum_wer.append(wer)
+        print(f"Image: {image_path}, Label: {label}, Prediction: {prediction_text}, Char Accuracy: {char_accuracy:.2f}%, Word Accuracy: {word_accuracy:.2f}%")
 
-    print(f"Average CER: {np.average(accum_cer):.3f}")
-    print(f"Average WER: {np.average(accum_wer):.3f}")
+        accum_char_accuracy.append(char_accuracy)
+        accum_word_accuracy.append(word_accuracy)
+
+    print(f"Average Character Accuracy: {np.average(accum_char_accuracy):.3f}")
+    print(f"Average Word Accuracy: {np.average(accum_word_accuracy):.3f}")
