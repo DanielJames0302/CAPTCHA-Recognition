@@ -56,8 +56,8 @@ def test_accuracy(predicted, label):
 
     return char_accuracy, word_accuracy
 
-test_accuracy("hello", "hallo")
-test_accuracy("caat", "cat")
-test_accuracy("kitten", "sitting")
-test_accuracy("law", "lawn")
-test_accuracy("hello", "hello")
+# test_accuracy("hello", "hallo")
+# test_accuracy("caat", "cat")
+# test_accuracy("kitten", "sitting")
+# test_accuracy("law", "lawn")
+# test_accuracy("hello", "hello")
