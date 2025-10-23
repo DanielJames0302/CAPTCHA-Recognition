@@ -5,7 +5,7 @@ import numpy as np
 from mltu.inferenceModel import OnnxInferenceModel
 from mltu.utils.text_utils import ctc_decoder
 
-from test_accuracy import test_accuracy
+from accuracy import test_accuracy
 
 class ImageToWordModel(OnnxInferenceModel):
     def __init__(self, char_list: typing.Union[str, list], *args, **kwargs):
