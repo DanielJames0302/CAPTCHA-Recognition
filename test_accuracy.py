@@ -50,7 +50,7 @@ def test_accuracy(predicted, label):
     print(f"CER: {cer:.6%}, WER: {wer:.6%}")
 
     char_accuracy = (correct / max(len(label), len(predicted))) * 100
-    word_accuracy = 1.0 if char_accuracy == 100.0 else 0.0
+    word_accuracy = 100.0 if char_accuracy == 100.0 else 0.0
 
     print(f"Character Accuracy: {char_accuracy:.2f}%, Word Accuracy: {word_accuracy:.2f}%\n")
 
@@ -60,3 +60,4 @@ test_accuracy("hello", "hallo")
 test_accuracy("caat", "cat")
 test_accuracy("kitten", "sitting")
 test_accuracy("law", "lawn")
+test_accuracy("hello", "hello")

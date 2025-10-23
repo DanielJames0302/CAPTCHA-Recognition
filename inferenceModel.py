@@ -3,7 +3,7 @@ import typing
 import numpy as np
 
 from mltu.inferenceModel import OnnxInferenceModel
-from mltu.utils.text_utils import ctc_decoder, get_cer, get_wer
+from mltu.utils.text_utils import ctc_decoder
 
 from test_accuracy import test_accuracy
 
