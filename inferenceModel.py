@@ -1,25 +1,23 @@
 import cv2
-import typing
 import numpy as np
+import tensorflow as tf
 
-from mltu.inferenceModel import OnnxInferenceModel
 from mltu.utils.text_utils import ctc_decoder, get_cer, get_wer
 
-class ImageToWordModel(OnnxInferenceModel):
-    def __init__(self, char_list: typing.Union[str, list], *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class ImageToWordModel:
+    def __init__(self, model_path: str, char_list, width, height):
         self.char_list = char_list
+        self.model = tf.keras.models.load_model(model_path, compile=False, safe_mode=False)
+        self.width = width
+        self.height = height
 
     def predict(self, image: np.ndarray):
-        image = cv2.resize(image, self.input_shapes[0][1:3][::-1])
+        # @todo: Apply proper preprocessing steps
+        image = cv2.resize(image, (self.width, self.height))
 
         image_pred = np.expand_dims(image, axis=0).astype(np.float32)
-
-        preds = self.model.run(self.output_names, {self.input_names[0]: image_pred})[0]
-
-        text = ctc_decoder(preds, self.char_list)[0]
-
-        return text
+        preds = self.model.predict(image_pred)
+        return ctc_decoder(preds, self.char_list)[0]
 
 # Run test dataset without training
 if __name__ == "__main__":
@@ -29,7 +27,8 @@ if __name__ == "__main__":
 
     configs = BaseModelConfigs.load("Models/02_captcha_to_text/202510041220/configs.yaml")
 
-    model = ImageToWordModel(model_path=configs.model_path, char_list=configs.vocab)
+    model_path = f"{configs.model_path}/model.keras"
+    model = ImageToWordModel(model_path=model_path, char_list=configs.vocab, width=configs.width, height=configs.height)
 
     df = pd.read_csv("Models/02_captcha_to_text/202510041220/val.csv").values.tolist()
 
