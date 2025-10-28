@@ -1,37 +1,32 @@
+import os
 import tensorflow as tf
-
-import data_helper
-try: [tf.config.experimental.set_memory_growth(gpu, True) for gpu in tf.config.experimental.list_physical_devices("GPU")]
-except: pass
-
-# Optimize CPU performance by using all available cores
-#tf.config.threading.set_inter_op_parallelism_threads(0)  # Use all available cores for operations between ops
-#tf.config.threading.set_intra_op_parallelism_threads(0)  # Use all available cores for operations within ops
-#print("CPU threading optimization enabled - using all available CPU cores")
-
 from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
+from torchvision import transforms
+import data_helper
+from model import train_model
+from configs import ModelConfigs
 
-from mltu.tensorflow.dataProvider import DataProvider
+# Import from the new utils directory
+from utils.data_provider import DataProvider, ImageReader, ImageResizer, LabelIndexer, LabelPadding
+#from utils.losses import CTCloss
+#from utils.callbacks import Model2onnx, TrainLogger
+#from utils.metrics import CWERMetric
+
+
 from mltu.tensorflow.losses import CTCloss
 from mltu.tensorflow.callbacks import Model2onnx, TrainLogger
 from mltu.tensorflow.metrics import CWERMetric
 
-from mltu.preprocessors import ImageReader
-from mltu.transformers import ImageResizer, LabelIndexer, LabelPadding
-from mltu.augmentors import RandomBrightness, RandomRotate, RandomErodeDilate
-from mltu.annotations.images import CVImage
+# GPU memory growth
+try:
+    [tf.config.experimental.set_memory_growth(gpu, True) for gpu in tf.config.experimental.list_physical_devices("GPU")]
+except:
+    pass
 
-from custom_transformers import GrayscaleTransformer
-
-from model import train_model
-from configs import ModelConfigs
-
-import os
-# Removed unused imports: urlopen, BytesIO, ZipFile
-
+# Load configs
 configs = ModelConfigs()
 
-# Build vocabulary from dataset (regardless of train/val split method)
+# Build vocabulary from the dataset
 vocab, max_len = set(), 0
 train_data_provider, val_data_provider = None, None
 
@@ -80,7 +75,17 @@ else:
 # Augment training data with random brightness, rotation and erode/dilate
 train_data_provider.augmentors = [RandomBrightness(), RandomRotate(), RandomErodeDilate()]
 
-# Define path to save the model
+# Define augmentations using torchvision
+augmentation_pipeline = transforms.Compose([
+    transforms.RandomRotation(degrees=5),
+    transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
+    # Add other transforms as needed, e.g., transforms.GaussianBlur(kernel_size=3)
+])
+
+# Assign augmentation pipeline to the training data provider
+train_data_provider.augmentors = augmentation_pipeline
+
+# Create model path directory
 os.makedirs(configs.model_path, exist_ok=True)
 
 # Save training and validation datasets as csv files
@@ -94,50 +99,44 @@ model_file_path = f"{configs.model_path}/model.keras"
 if os.path.exists(model_file_path):
     print(f"Loading existing model from {model_file_path}")
     try:
-        model = tf.keras.models.load_model(
-            model_file_path,
-            compile=False,
-            safe_mode=False  # Allow loading Lambda layers
-        )
-        print("Model loaded successfully - resuming training")
+        model = tf.keras.models.load_model(model_file_path, compile=False, safe_mode=False)
+        print("Model loaded successfully.")
     except Exception as e:
-        print(f"Failed to load existing model: {e}")
-
+        print(f"Failed to load model: {e}")
+        model = None
 else:
-    # Creating TensorFlow model architecture
+    model = None
+
+if model is None:
+    print("Creating a new model.")
     model = train_model(
-        input_dim = (configs.height, configs.width, 3),
-        output_dim = len(configs.vocab),
+        input_dim=(configs.height, configs.width, 3),
+        output_dim=len(configs.vocab),
     )
-    
-    print("New model created")    
 
+# Compile and train the model
 if model:
-    # Compile the model
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=configs.learning_rate), 
-        loss=CTCloss(), 
+        optimizer=tf.keras.optimizers.Adam(learning_rate=configs.learning_rate),
+        loss=CTCloss(),
         metrics=[CWERMetric(padding_token=len(configs.vocab))],
-        run_eagerly=False,
-        steps_per_execution=64,
+        run_eagerly=False
     )
-
-    # Print model summary
     model.summary(line_length=110)
 
-    # Define callbacks
-    earlystopper = EarlyStopping(monitor="val_CER", patience=50, verbose=1, mode="min")
-    checkpoint = ModelCheckpoint(f"{configs.model_path}/model.keras", monitor="val_CER", verbose=1, save_best_only=True, mode="min")
-    trainLogger = TrainLogger(configs.model_path)
-    tb_callback = TensorBoard(f"{configs.model_path}/logs", update_freq=1)
-    reduceLROnPlat = ReduceLROnPlateau(monitor="val_CER", factor=0.9, min_delta=1e-10, patience=20, verbose=1, mode="min")
-    model2onnx = Model2onnx(f"{configs.model_path}/model.keras")
+    callbacks = [
+        EarlyStopping(monitor="val_CER", patience=50, verbose=1, mode="min"),
+        ModelCheckpoint(model_file_path, monitor="val_CER", verbose=1, save_best_only=True, mode="min"),
+        TrainLogger(configs.model_path),
+        TensorBoard(os.path.join(configs.model_path, "logs"), update_freq=1),
+        ReduceLROnPlateau(monitor="val_CER", factor=0.9, min_delta=1e-10, patience=20, verbose=1, mode="min"),
+        Model2onnx(model_file_path)
+    ]
 
-    # Train the model
     model.fit(
         train_data_provider,
         validation_data=val_data_provider,
         epochs=configs.train_epochs,
-        callbacks=[earlystopper, checkpoint, trainLogger, reduceLROnPlat, tb_callback, model2onnx],
+        callbacks=callbacks,
         validation_freq=5,
     )

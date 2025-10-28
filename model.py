@@ -1,6 +1,8 @@
 from keras import layers
 from keras.models import Model
 
+# Updated import path
+#from utils.model_utils import residual_block
 from mltu.tensorflow.model_utils import residual_block
 
 
