@@ -4,7 +4,7 @@ from typing import List
 
 # Updated import paths
 from utils.data_provider import DataProvider, ImageReader, ImageResizer, LabelIndexer, LabelPadding
-from custom_transformers_proj import GrayscaleTransformer
+from custom_transformers import GrayscaleTransformer
 
 def load_dataset_from_path(path: str) -> List[List[str]]:
     """

@@ -2,9 +2,9 @@ import os
 import tensorflow as tf
 from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 from torchvision import transforms
-import data_helper_proj
-from model_proj import train_model
-from configs_proj import ModelConfigs
+import data_helper
+from model import train_model
+from configs import ModelConfigs
 
 # Import from the new utils directory
 from utils.data_provider import DataProvider, ImageReader, ImageResizer, LabelIndexer, LabelPadding
@@ -28,7 +28,7 @@ configs = ModelConfigs()
 
 # Build vocabulary from the dataset
 vocab, max_len = set(), 0
-dataset = data_helper_proj.load_dataset_from_path(configs.dataset_path)
+dataset = data_helper.load_dataset_from_path(configs.dataset_path)
 
 for _, label in dataset:
     vocab.update(list(label))
@@ -40,7 +40,7 @@ configs.max_text_length = max_len
 configs.save()
 
 # Create data provider
-data_provider = data_helper_proj.CreateDataProvider(dataset, configs)
+data_provider = data_helper.CreateDataProvider(dataset, configs)
 
 # Split dataset
 train_data_provider, val_data_provider = data_provider.split(split=0.9)

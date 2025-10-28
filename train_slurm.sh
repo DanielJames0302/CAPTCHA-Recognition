@@ -2,7 +2,7 @@
 #SBATCH --output=logs/slurm-%j.out
 #SBATCH --error=logs/slurm_error_%j.err
 #SBATCH --job-name=ray-4243
-#SBATCH --mail-user=e1505950@comp.nus.edu.sg
+#SBATCH --mail-user=e1505950@u.nus.edu.sg
 #SBATCH --partition=gpu-long
 #SBATCH --gres=gpu:a100-40:1     # or nv:1 -C cuda75
 #SBATCH --time=72:00:00
@@ -31,14 +31,14 @@ export TF_FORCE_GPU_ALLOW_GROWTH=true    # avoid full GPU memory pre-allocation
 # export XLA_FLAGS=--xla_gpu_strict_conv_algorithm_picker=false  # uncomment if you hit rare cuDNN alg issues
 
 # Check if we're in the right directory
-if [ ! -f "train_proj.py" ]; then
-    echo "Error: train_proj.py not found. Please run this script from the assignment directory."
+if [ ! -f "train.py" ]; then
+    echo "Error: train.py not found. Please run this script from the assignment directory."
     exit 1
 fi
 
 # Quick repo sanity check
-if [ ! -f "train_proj.py" ]; then
-  echo "ERROR: train_proj.py not found in $PROJECT_DIR"
+if [ ! -f "train.py" ]; then
+  echo "ERROR: train.py not found in $PROJECT_DIR"
   exit 1
 fi
 
@@ -59,7 +59,7 @@ date
 # NOTE: training configuration is controlled in configs.py.
 # If you want to change dataset_path/model_path, edit configs.py before submitting.
 # (This script intentionally does not pass CLI flags because the repo doesn't use them.)
-srun --exclusive -N1 -n1 python train_proj.py
+srun --exclusive -N1 -n1 python train.py
 
 TRAIN_EXIT=$?
 date
