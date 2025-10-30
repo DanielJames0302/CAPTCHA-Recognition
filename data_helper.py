@@ -43,11 +43,15 @@ def load_dataset_from_path(path: str) -> List[List[str]]:
         # Get filename without extension
         filename_without_ext = os.path.splitext(file)[0]
         
-        # Extract label (part before the first '-')
-        if '-' not in filename_without_ext:
+        delims = ['-', '_']
+        # Extract label (part before the first delimiter)
+        label = None
+        for delim in delims:
+            if delim in filename_without_ext:
+                label = filename_without_ext.split(delim)[0]
+                break
+        if not label:
             continue
-        
-        label = filename_without_ext.split('-')[0]
         
         # Skip if label is empty
         if not label:
