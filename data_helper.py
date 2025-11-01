@@ -76,12 +76,11 @@ def load_dataset_from_csv(path: str) -> List[List[str]]:
     if not os.path.exists(path):
         raise ValueError(f"CSV file not found: {path}")
     
-    df = pd.read_csv(path)
-    if 'file_path' not in df.columns or 'label' not in df.columns:
-        raise ValueError("CSV file must contain 'file_path' and 'label' columns")
+    if not os.path.exists(path):
+        raise ValueError(f"CSV file not found: {path}")
     
-    dataset = df[['file_path', 'label']].values.tolist()
-    return dataset
+    df = pd.read_csv(path).values.tolist()
+    return df
 
 
 def save_dataset_to_csv(data_provider, path: str) -> None:

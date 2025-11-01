@@ -14,6 +14,7 @@ from custom_transformers import GrayscaleTransformer
 from character_extraction.extract_char import preprocess_image, get_center_aligned_boxes, handle_connected_characters
 from utils.data_provider import ImageResizer
 from utils.text_utils import ctc_decoder, get_cer, get_wer
+from data_helper import load_dataset_from_path
 
 class ImageToWordModel:
     def __init__(self, model_path: str, char_list, width, height):
@@ -39,7 +40,7 @@ class ImageToWordModel:
 
 # Run test dataset without training
 if __name__ == "__main__":
-    model_directory = "Models/20251101192227"
+    model_directory = "Models/seg_1Aug_v2"
     model_path = f"{model_directory}/model.keras"
     configs = BaseModelConfigs.load(f"{model_directory}/configs.yaml")
 
@@ -62,7 +63,7 @@ if __name__ == "__main__":
         
     model = ImageToWordModel(model_path=model_path, char_list=configs.vocab, width=configs.width, height=configs.height)
 
-    df = pd.read_csv(f"{model_directory}/val.csv").values.tolist()
+    df = load_dataset_from_path("Datasets/full/val")
 
     accum_cer = []
     accum_wer = []
