@@ -1,3 +1,5 @@
+import os
+import logging
 import cv2
 import numpy as np
 import pandas as pd
@@ -30,9 +32,27 @@ class ImageToWordModel:
 
 # Run test dataset without training
 if __name__ == "__main__":
-    model_directory = "Models/20251101165903"
+    model_directory = "Models/full_1Aug_2layer"
     model_path = f"{model_directory}/model.keras"
     configs = BaseModelConfigs.load(f"{model_directory}/configs.yaml")
+
+    # Ensure model directory exists and configure logging to file
+    os.makedirs(model_directory, exist_ok=True)
+    log_path = os.path.join(model_directory, "inference.txt")
+
+    logger = logging.getLogger("inference")
+    logger.setLevel(logging.INFO)
+    # avoid adding multiple handlers if this file is imported/run multiple times
+    if not logger.handlers:
+        formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+        fh = logging.FileHandler(log_path, mode="a", encoding="utf-8")
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+        # also log to console
+        ch = logging.StreamHandler()
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+        
     model = ImageToWordModel(model_path=model_path, char_list=configs.vocab, width=configs.width, height=configs.height)
 
     df = pd.read_csv(f"{model_directory}/val.csv").values.tolist()
@@ -46,10 +66,10 @@ if __name__ == "__main__":
 
         cer = get_cer(prediction_text, label)
         wer = get_wer(prediction_text, label)
-        print(f"Image: {image_path}, Label: {label}, Prediction: {prediction_text}, CER: {cer:.3f}, WER: {wer:.3f}")
+        logger.info(f"Image: {image_path}, Label: {label}, Prediction: {prediction_text}, CER: {cer:.3f}, WER: {wer:.3f}")
 
         accum_cer.append(cer)
         accum_wer.append(wer)
 
-    print(f"Average CER: {np.average(accum_cer):.3f}")
-    print(f"Average WER: {np.average(accum_wer):.3f}")
+    logger.info(f"Average CER: {np.average(accum_cer):.3f}")
+    logger.info(f"Average WER: {np.average(accum_wer):.3f}")
