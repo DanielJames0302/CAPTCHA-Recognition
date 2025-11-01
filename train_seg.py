@@ -103,7 +103,7 @@ if model:
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=configs.learning_rate), 
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
-        metrics=['accuracy'],
+        metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name="sparse_acc")],
         run_eagerly=False,
         steps_per_execution=64,
     )
@@ -118,7 +118,7 @@ if model:
     checkpoint = ModelCheckpoint(f"{configs.model_path}/model.keras", monitor="val_accuracy", verbose=1, save_best_only=True, mode="max")
     trainLogger = TrainLogger(configs.model_path)
     tb_callback = TensorBoard(f"{configs.model_path}/logs", update_freq=1)
-    reduceLROnPlat = ReduceLROnPlateau(monitor="val_loss", factor=0.9, min_delta=1e-10, patience=20, verbose=1, mode="min")
+    reduceLROnPlat = ReduceLROnPlateau(monitor="val_loss", factor=0.5, min_delta=1e-10, min_lr=1e-6,patience=8, verbose=1, mode="min")
     model2onnx = Model2onnx(f"{configs.model_path}/model.keras")
 
     # Train the model
@@ -127,5 +127,5 @@ if model:
         validation_data=val_data_provider,
         epochs=configs.train_epochs,
         callbacks=[earlystopper, checkpoint, trainLogger, reduceLROnPlat, tb_callback, model2onnx],
-        validation_freq=5,
+        validation_freq=1,
     )

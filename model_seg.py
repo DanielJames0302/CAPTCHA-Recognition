@@ -3,37 +3,38 @@ from keras.models import Model
 
 from mltu.tensorflow.model_utils import residual_block
 
-def train_model(input_dim, output_dim, activation="leaky_relu", dropout=0.25):
-    
+def train_model(input_dim, output_dim, activation="leaky_relu", dropout=0.4):
     inputs = layers.Input(shape=input_dim, name="input")
+    x = layers.Rescaling(1./255)(inputs)
 
-    # normalize to [0,1]
-    x = layers.Lambda(lambda x: x / 255.0)(inputs)
+    # Block 1
+    x = layers.SeparableConv2D(32, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.SeparableConv2D(32, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.MaxPooling2D(2)(x)
 
-    # Conv block 1
-    x = layers.Conv2D(32, (3, 3), padding="same", use_bias=False)(x)
+    # Block 2
+    x = layers.SeparableConv2D(64, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.SeparableConv2D(64, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.MaxPooling2D(2)(x)
+
+    # Block 3
+    x = layers.SeparableConv2D(128, 3, padding="same", use_bias=False)(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
 
-    x = layers.Conv2D(32, (3, 3), padding="same", use_bias=False)(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.ReLU()(x)
-    x = layers.MaxPooling2D((2, 2))(x)
-
-    # Conv block 2
-    x = layers.Conv2D(64, (3, 3), padding="same", use_bias=False)(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.ReLU()(x)
-    x = layers.MaxPooling2D((2, 2))(x)
-
-    # Global pooling + dense head
     x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Dense(128, activation=None, use_bias=False)(x)
+    x = layers.Dense(256, use_bias=False)(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
     x = layers.Dropout(dropout)(x)
 
-    outputs = layers.Dense(output_dim + 1, activation="softmax", name="output")(x)
-
-    model = Model(inputs=inputs, outputs=outputs)
-    return model
+    outputs = layers.Dense(output_dim, activation="softmax", name="output")(x)
+    return Model(inputs=inputs, outputs=outputs)
