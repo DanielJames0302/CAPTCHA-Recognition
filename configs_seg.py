@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from mltu.configs import BaseModelConfigs
+from utils.configs import BaseModelConfigs
 
 
 class ModelConfigs(BaseModelConfigs):

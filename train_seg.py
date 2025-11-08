@@ -1,27 +1,16 @@
+import os
 import tensorflow as tf
+from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
+from torchvision import transforms
+import data_helper
+from model_seg import train_model
+from configs_seg import ModelConfigs
+
+from utils.callbacks import Model2onnx, TrainLogger
 
 import data_helper
 try: [tf.config.experimental.set_memory_growth(gpu, True) for gpu in tf.config.experimental.list_physical_devices("GPU")]
 except: pass
-
-# Optimize CPU performance by using all available cores
-#tf.config.threading.set_inter_op_parallelism_threads(0)  # Use all available cores for operations between ops
-#tf.config.threading.set_intra_op_parallelism_threads(0)  # Use all available cores for operations within ops
-#print("CPU threading optimization enabled - using all available CPU cores")
-
-from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
-
-from mltu.tensorflow.losses import CTCloss
-from mltu.tensorflow.callbacks import Model2onnx, TrainLogger
-from mltu.tensorflow.metrics import CWERMetric
-
-from mltu.augmentors import RandomRotate
-
-from model_seg import train_model
-from configs_seg import ModelConfigs
-
-import os
-# Removed unused imports: urlopen, BytesIO, ZipFile
 
 configs = ModelConfigs()
 
@@ -62,8 +51,14 @@ else:
     print("Train directory not found. Please ensure the dataset directory exists.")
     exit(1)
     
-# Augment training data with random brightness, rotation and erode/dilate
-train_data_provider.augmentors = [RandomRotate()]
+# Define augmentations using torchvision
+augmentation_pipeline = transforms.Compose([
+    transforms.RandomRotation(degrees=5),
+    # Add other transforms as needed, e.g., transforms.GaussianBlur(kernel_size=3)
+])
+
+# Assign augmentation pipeline to the training data provider
+train_data_provider.augmentors = augmentation_pipeline
 
 # Define path to save the model
 os.makedirs(configs.model_path, exist_ok=True)
@@ -114,12 +109,12 @@ if model:
     # Define callbacks
     # Monitor validation accuracy for early stopping and checkpointing when
     # training with categorical loss.
-    earlystopper = EarlyStopping(monitor="val_accuracy", patience=50, verbose=1, mode="max")
-    checkpoint = ModelCheckpoint(f"{configs.model_path}/model.keras", monitor="val_accuracy", verbose=1, save_best_only=True, mode="max")
+    earlystopper = EarlyStopping(monitor="val_sparse_acc", patience=50, verbose=1, mode="max")
+    checkpoint = ModelCheckpoint(f"{configs.model_path}/model.keras", monitor="val_sparse_acc", verbose=1, save_best_only=True, mode="max")
     trainLogger = TrainLogger(configs.model_path)
     tb_callback = TensorBoard(f"{configs.model_path}/logs", update_freq=1)
     reduceLROnPlat = ReduceLROnPlateau(monitor="val_loss", factor=0.5, min_delta=1e-10, min_lr=1e-6,patience=8, verbose=1, mode="min")
-    model2onnx = Model2onnx(f"{configs.model_path}/model.keras")
+    model2onnx = Model2onnx(f"{configs.model_path}/model.onnx")
 
     # Train the model
     model.fit(
