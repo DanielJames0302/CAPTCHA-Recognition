@@ -2,10 +2,8 @@ import os
 import pandas as pd
 from typing import List
 
-from mltu.tensorflow.dataProvider import DataProvider
-from mltu.preprocessors import ImageReader
-from mltu.transformers import ImageResizer, LabelIndexer, LabelPadding
-from mltu.annotations.images import CVImage
+# Updated import paths
+from utils.data_provider import DataProvider, ImageReader, ImageResizer, LabelIndexer, LabelPadding
 from custom_transformers import GrayscaleTransformer
 
 def load_dataset_from_path(path: str) -> List[List[str]]:
@@ -63,7 +61,7 @@ def load_dataset_from_path(path: str) -> List[List[str]]:
 
 def load_dataset_from_csv(path: str) -> List[List[str]]:
     """
-    Load dataset from CSV file in the format expected by mltu DataProvider.
+    Load dataset from CSV file.
     
     Args:
         path (str): Path to CSV file containing file_path and label columns
@@ -87,7 +85,7 @@ def save_dataset_to_csv(data_provider, path: str) -> None:
     Save a DataProvider dataset to CSV file.
     
     Args:
-        data_provider: mltu DataProvider object with dataset attribute
+        data_provider: DataProvider object with dataset attribute
         path (str): Path where CSV file will be saved
     """
     # Create directory if it doesn't exist
@@ -116,7 +114,8 @@ def CreateDataProvider(dataset: List[List[str]], configs) -> DataProvider:
         dataset=dataset,
         skip_validation=True,
         batch_size=configs.batch_size,
-        data_preprocessors=[ImageReader(CVImage)],
+        # ImageReader no longer needs CVImage
+        data_preprocessors=[ImageReader()],
         transformers=[
             ImageResizer(configs.width, configs.height, keep_aspect_ratio=True, padding_color=(255,255,255)),
             GrayscaleTransformer(keep_3_channels=True), 
