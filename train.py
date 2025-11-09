@@ -120,11 +120,11 @@ if model:
     model.summary(line_length=110)
 
     callbacks = [
-        EarlyStopping(monitor="val_CER", patience=50, verbose=1, mode="min"),
-        ModelCheckpoint(model_file_path, monitor="val_CER", verbose=1, save_best_only=True, mode="min"),
+        EarlyStopping(monitor="CER", patience=50, verbose=1, mode="min"),
+        ModelCheckpoint(model_file_path, monitor="CER", verbose=1, save_best_only=True, mode="min"),
         TrainLogger(configs.model_path),
         TensorBoard(os.path.join(configs.model_path, "logs"), update_freq=1),
-        ReduceLROnPlateau(monitor="val_CER", factor=0.9, min_delta=1e-10, patience=20, verbose=1, mode="min"),
+        ReduceLROnPlateau(monitor="CER", factor=0.9, min_delta=1e-10, patience=20, verbose=1, mode="min"),
         Model2onnx(model_file_path)
     ]
 
