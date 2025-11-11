@@ -7,6 +7,7 @@ import tensorflow as tf
 from tqdm import tqdm
 
 # Import from the new utils directory
+from accuracy import get_errors
 from custom_transformers import GrayscaleTransformer
 from utils.data_provider import ImageResizer
 from utils.text_utils import ctc_decoder, get_cer, get_wer
@@ -59,17 +60,42 @@ if __name__ == "__main__":
 
     accum_cer = []
     accum_wer = []
+    total_correct_chars = 0
+    total_chars = 0
+    total_correct_words = 0
+    total_words = 0
     for image_path, label in tqdm(df):
         image = cv2.imread(image_path.replace("\\", "/"))
 
         prediction_text = model.predict(image)
 
+        S, D, I = get_errors(list(label), list(prediction_text))
+        correct = max(0, len(label) - S - D) # takes into account insertion errors
+        total_correct_chars += correct
+        total_chars += max(len(label), len(prediction_text))
+
+        logger.info(f"Label: {label}, predicted: {prediction_text}, S: {S}, D: {D}, I: {I}, Correct chars: {correct}/{max(len(label), len(prediction_text))}")
+
         cer = get_cer(prediction_text, label)
         wer = get_wer(prediction_text, label)
-        logger.info(f"Image: {image_path}, Label: {label}, Prediction: {prediction_text}, CER: {cer:.3f}, WER: {wer:.3f}")
+        logger.info(f"CER: {cer:.6%}, WER: {wer:.6%}")
+
+        char_accuracy = (correct / max(len(label), len(prediction_text))) * 100
+
+        if char_accuracy == 100.0:
+            total_correct_words += 1
+            word_accuracy = 100.0
+        else:
+            word_accuracy = 0.0
+
+        total_words += 1
+
+        logger.info(f"Character Accuracy: {char_accuracy:.2f}%, Word Accuracy: {word_accuracy:.2f}%\n")
 
         accum_cer.append(cer)
         accum_wer.append(wer)
 
-    logger.info(f"Average CER: {np.average(accum_cer):.3f}")
-    logger.info(f"Average WER: {np.average(accum_wer):.3f}")
+    total_char_accuracy = np.divide(total_correct_chars, total_chars) * 100
+    total_word_accuracy = np.divide(total_correct_words, total_words) * 100
+    logger.info(f"Average Character Accuracy: {total_char_accuracy:.3f}")
+    logger.info(f"Average Word Accuracy: {total_word_accuracy:.3f}")

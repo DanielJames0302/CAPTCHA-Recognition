@@ -1,4 +1,4 @@
-from mltu.utils.text_utils import get_cer, get_wer
+from utils.text_utils import get_cer, get_wer
 
 
 def get_errors(a: list, b: list):

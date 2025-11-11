@@ -216,6 +216,13 @@ def get_center_aligned_boxes(processed, gray, height_scale=1.3, merge_thresh=1.0
 
     return final_boxes, vis
 
+def get_cropped_images(image, boxes):
+    crops = []
+    for (x, y, w, h) in boxes:
+        crop = image[y:y+h, x:x+w]
+        crops.append(crop)
+    return crops
+
 ''' Get dominant hue peaks in the image '''
 def get_hue_peaks(image, val_thresh=10, sat_thresh=2, hist_smooth=5, peak_thresh=0.1, hue_merge=5):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)

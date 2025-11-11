@@ -24,17 +24,25 @@ correct_count = 0
 char_count = {}
 for img_num, img_name in enumerate(test_images):
     print(f"Processing image {img_num + 1}/{len(test_images)}: {img_name}")
+    # img_name = abc-0.png so we want only "abc"
+    label = img_name.split('-')[0]
+    
     img_path = os.path.join(test_images_folder, img_name)
     image = cv2.imread(img_path)
     image_cleaned, gray, processed = preprocess_image(image, visualize=False)
 
     boxes, vis = get_center_aligned_boxes(processed, gray, visualize=False, merge_thresh=1)
-    segmentations = handle_connected_characters(image_cleaned, boxes, visualize=False)
+    segmentations = []
+    if len(segmentations) < len(label):
+        segmentations = handle_connected_characters(image_cleaned, boxes, visualize=False)
+    elif len(segmentations) == len(label):
+        segmentations = get_cropped_images(image_cleaned, boxes)
+    else:
+        print(f"Mismatch in letter count for image: {img_name}. Expected {len(label)}, Detected {len(segmentations)}")
+        continue
 
     print(f"Detected {len(segmentations)} letters in image: {img_name}")
 
-    # img_name = abc-0.png so we want only "abc"
-    label = img_name.split('-')[0]
     if len(segmentations) == len(label):
         correct_count += 1
         
