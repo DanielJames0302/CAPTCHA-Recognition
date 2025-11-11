@@ -30,9 +30,10 @@ def preprocess_image(image, visualize=True):
     # thicken lines
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2,2))
     image_blend = cv2.morphologyEx(image_blend, cv2.MORPH_ERODE, kernel)
+    image_cleaned = image_blend
 
     # preprocessing (grayscale, binarization)
-    gray = cv2.cvtColor(image_blend, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(image_cleaned, cv2.COLOR_BGR2GRAY)
 
     # adaptive thresholding for varying illumination 
     thresh = cv2.adaptiveThreshold(
@@ -54,7 +55,7 @@ def preprocess_image(image, visualize=True):
         plt.axis('off')
 
         plt.subplot(4, 1, 2)
-        plt.imshow(image_clean, 'gray')
+        plt.imshow(image_cleaned, 'gray')
         plt.title('Clean Image')
         plt.axis('off')
 
@@ -70,7 +71,7 @@ def preprocess_image(image, visualize=True):
 
         plt.show()
 
-    return image_clean, gray, processed
+    return image_cleaned, gray, processed
 
 
 def get_center_aligned_boxes(processed, gray, height_scale=1.3, merge_thresh=1.0, visualize=False):
