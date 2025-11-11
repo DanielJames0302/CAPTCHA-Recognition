@@ -41,11 +41,15 @@ def load_dataset_from_path(path: str) -> List[List[str]]:
         # Get filename without extension
         filename_without_ext = os.path.splitext(file)[0]
         
-        # Extract label (part before the first '-')
-        if '-' not in filename_without_ext:
+        delims = ['-', '_']
+        # Extract label (part before the first delimiter)
+        label = None
+        for delim in delims:
+            if delim in filename_without_ext:
+                label = filename_without_ext.split(delim)[0]
+                break
+        if not label:
             continue
-        
-        label = filename_without_ext.split('-')[0]
         
         # Skip if label is empty
         if not label:
@@ -72,12 +76,11 @@ def load_dataset_from_csv(path: str) -> List[List[str]]:
     if not os.path.exists(path):
         raise ValueError(f"CSV file not found: {path}")
     
-    df = pd.read_csv(path)
-    if 'file_path' not in df.columns or 'label' not in df.columns:
-        raise ValueError("CSV file must contain 'file_path' and 'label' columns")
+    if not os.path.exists(path):
+        raise ValueError(f"CSV file not found: {path}")
     
-    dataset = df[['file_path', 'label']].values.tolist()
-    return dataset
+    df = pd.read_csv(path).values.tolist()
+    return df
 
 
 def save_dataset_to_csv(data_provider, path: str) -> None:
