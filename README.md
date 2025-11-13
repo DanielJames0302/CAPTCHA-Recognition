@@ -1,10 +1,16 @@
 # CS4243 CAPTCHA REPO
 
 ## Requirements
-- Python 3;
+- Python 3
 - TensorFlow 2.19
 - mltu
 - tf2onnx
+- PyTorch (for GAN training and generation)
+- torchvision
+- PIL/Pillow
+- matplotlib
+- imageio
+- numpy
 
 ## Training
 
@@ -79,3 +85,120 @@ The testing script provides two key metrics:
 Lower values indicate better performance. The script will output:
 - Individual predictions for each test image
 - Average CER and WER across the entire test dataset
+
+## GAN Training
+
+This repository also includes a Deep Convolutional GAN (DCGAN) implementation for generating synthetic CAPTCHA character images.
+
+### GAN Configuration
+
+The GAN training script (`train_gan_improved.py`) uses the following default settings:
+- **Image size**: 64x64 pixels (grayscale)
+- **Dataset path**: `Datasets/full/train/segmented` (segmented character images)
+- **Batch size**: 128
+- **Training epochs**: 200
+- **Latent dimension (z)**: 100
+- **Generator learning rate**: 1e-4
+- **Discriminator learning rate**: 4e-4
+- **Loss function**: Hinge loss
+
+### Running GAN Training
+
+To train the GAN model locally:
+
+```bash
+python train_gan_improved.py
+```
+
+**Note:** Before running, ensure you have:
+1. A directory containing segmented character images (PNG format)
+2. Update the `dataset_path` variable in `train_gan_improved.py` if your dataset is in a different location
+
+### Running GAN Training on SLURM Cluster
+
+If you're using a SLURM cluster, you can submit the training job:
+
+```bash
+sbatch train_gan_improved_slurm.sh
+```
+
+The SLURM script will:
+- Request 1 GPU for 24 hours
+- Activate the virtual environment
+- Run the training script
+- Save all outputs to `logs/` directory
+
+### GAN Training Output
+
+After training completes, a timestamped results directory will be created (e.g., `Captcha_DCGAN_results_20251111154440/`) containing:
+
+- **Model weights:**
+  - `generator_param.pkl`: Trained generator weights
+  - `discriminator_param.pkl`: Trained discriminator weights
+  
+- **Training history:**
+  - `train_hist.pkl`: Training loss history (pickle file)
+  - `Captcha_DCGAN_train_hist.png`: Loss curves visualization
+  
+- **Generated samples:**
+  - `Random_results/`: Randomly sampled images at each epoch
+  - `Fixed_results/`: Images generated from fixed noise vectors (for tracking training progress)
+  - `generation_animation.gif`: Animated GIF showing training progress over epochs
+
+### GAN Architecture
+
+- **Generator**: Transposed convolutional network that upsamples from 100-dimensional noise to 64x64 grayscale images
+- **Discriminator**: Convolutional network with spectral normalization that classifies real vs. fake images
+
+## Generating CAPTCHA Images
+
+Once you have a trained GAN generator, you can use it to generate synthetic CAPTCHA images.
+
+### Configuration
+
+The generation script (`generate_captcha_gan.py`) has the following parameters:
+- **Generator weights path**: Path to `generator_param.pkl` (update line 48 in the script)
+- **Number of characters**: Randomly sampled between 5-8 characters per CAPTCHA
+- **Character size**: 64x64 pixels
+- **Final CAPTCHA dimensions**: 500x80 pixels
+- **Output directory**: `generated_captchas/`
+
+### Running CAPTCHA Generation
+
+1. **Update the generator weights path** in `generate_captcha_gan.py`:
+   ```python
+   save_root = "Captcha_DCGAN_results_20251111154440"  # Your results directory
+   ```
+
+2. **Run the generation script**:
+   ```bash
+   python generate_captcha_gan.py
+   ```
+
+The script will:
+- Load the trained generator model
+- Generate 100 CAPTCHA images (default)
+- Save each image with a timestamp to `generated_captchas/` directory
+
+### Running Generation on SLURM Cluster
+
+To generate CAPTCHA images on a SLURM cluster:
+
+```bash
+sbatch generate_captcha_gan.sh
+```
+
+The script will automatically:
+- Find the latest generator weights in `Captcha_DCGAN_results_*/` directories
+- Run the generation process
+- Save outputs to `generated_captchas/` directory
+
+### Generation Process
+
+Each generated CAPTCHA image is created by:
+1. Randomly selecting the number of characters (5-8)
+2. Generating individual character images using the trained generator
+3. Concatenating characters horizontally
+4. Resizing to final CAPTCHA dimensions (500x80)
+
+The generated images are saved as grayscale PNG files with timestamps in their filenames.
