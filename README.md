@@ -92,8 +92,8 @@ This repository also includes a Deep Convolutional GAN (DCGAN) implementation fo
 
 ### GAN Configuration
 
-The GAN training script (`train_gan_improved.py`) uses the following default settings:
-- **Image size**: 64x64 pixels (grayscale)
+The GAN training script (`train_color_gan.py`) uses the following default settings:
+- **Image size**: 64x64 pixels (RGB color)
 - **Dataset path**: `Datasets/full/train/segmented` (segmented character images)
 - **Batch size**: 128
 - **Training epochs**: 200
@@ -107,19 +107,19 @@ The GAN training script (`train_gan_improved.py`) uses the following default set
 To train the GAN model locally:
 
 ```bash
-python train_gan_improved.py
+python train_color_gan.py
 ```
 
 **Note:** Before running, ensure you have:
 1. A directory containing segmented character images (PNG format)
-2. Update the `dataset_path` variable in `train_gan_improved.py` if your dataset is in a different location
+2. Update the `dataset_path` variable in `train_color_gan.py` if your dataset is in a different location
 
 ### Running GAN Training on SLURM Cluster
 
 If you're using a SLURM cluster, you can submit the training job:
 
 ```bash
-sbatch train_gan_improved_slurm.sh
+sbatch train_color_gan_slurm.sh
 ```
 
 The SLURM script will:
@@ -147,7 +147,7 @@ After training completes, a timestamped results directory will be created (e.g.,
 
 ### GAN Architecture
 
-- **Generator**: Transposed convolutional network that upsamples from 100-dimensional noise to 64x64 grayscale images
+- **Generator**: Transposed convolutional network that upsamples from 100-dimensional noise to 64x64 RGB color images (3 channels)
 - **Discriminator**: Convolutional network with spectral normalization that classifies real vs. fake images
 
 ## Generating CAPTCHA Images
@@ -156,42 +156,42 @@ Once you have a trained GAN generator, you can use it to generate synthetic CAPT
 
 ### Configuration
 
-The generation script (`generate_captcha_gan.py`) has the following parameters:
+The generation script (`generate_color_captcha_gan.py`) has the following parameters:
 - **Generator weights path**: Path to `generator_param.pkl` (update line 48 in the script)
 - **Number of characters**: Randomly sampled between 5-8 characters per CAPTCHA
-- **Character size**: 64x64 pixels
+- **Character size**: 64x64 pixels (RGB color)
 - **Final CAPTCHA dimensions**: 500x80 pixels
-- **Output directory**: `generated_captchas/`
+- **Output directory**: `generated_color_captchas/`
 
 ### Running CAPTCHA Generation
 
-1. **Update the generator weights path** in `generate_captcha_gan.py`:
+1. **Update the generator weights path** in `generate_color_captcha_gan.py`:
    ```python
    save_root = "Captcha_DCGAN_results_20251111154440"  # Your results directory
    ```
 
 2. **Run the generation script**:
    ```bash
-   python generate_captcha_gan.py
+   python generate_color_captcha_gan.py
    ```
 
 The script will:
 - Load the trained generator model
 - Generate 100 CAPTCHA images (default)
-- Save each image with a timestamp to `generated_captchas/` directory
+- Save each image with a timestamp to `generated_color_captchas/` directory
 
 ### Running Generation on SLURM Cluster
 
 To generate CAPTCHA images on a SLURM cluster:
 
 ```bash
-sbatch generate_captcha_gan.sh
+sbatch generate_color_captcha_gan.sh
 ```
 
 The script will automatically:
 - Find the latest generator weights in `Captcha_DCGAN_results_*/` directories
 - Run the generation process
-- Save outputs to `generated_captchas/` directory
+- Save outputs to `generated_color_captchas/` directory
 
 ### Generation Process
 
@@ -201,4 +201,4 @@ Each generated CAPTCHA image is created by:
 3. Concatenating characters horizontally
 4. Resizing to final CAPTCHA dimensions (500x80)
 
-The generated images are saved as grayscale PNG files with timestamps in their filenames.
+The generated images are saved as RGB color PNG files with timestamps in their filenames.
