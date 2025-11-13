@@ -7,15 +7,9 @@ from model import train_model
 from configs import ModelConfigs
 
 # Import from the new utils directory
-from utils.data_provider import DataProvider, ImageReader, ImageResizer, LabelIndexer, LabelPadding
-#from utils.losses import CTCloss
-#from utils.callbacks import Model2onnx, TrainLogger
-#from utils.metrics import CWERMetric
-
-
-from mltu.tensorflow.losses import CTCloss
-from mltu.tensorflow.callbacks import Model2onnx, TrainLogger
-from mltu.tensorflow.metrics import CWERMetric
+from utils.losses import CTCloss
+from utils.callbacks import Model2onnx, TrainLogger
+from utils.metrics import CWERMetric
 
 # GPU memory growth
 try:
@@ -72,13 +66,10 @@ else:
     print("Train directory not found. Please ensure the dataset directory exists.")
     exit(1)
     
-# Augment training data with random brightness, rotation and erode/dilate
-train_data_provider.augmentors = [RandomBrightness(), RandomRotate(), RandomErodeDilate()]
 
 # Define augmentations using torchvision
 augmentation_pipeline = transforms.Compose([
     transforms.RandomRotation(degrees=5),
-    transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
     # Add other transforms as needed, e.g., transforms.GaussianBlur(kernel_size=3)
 ])
 
@@ -99,37 +90,41 @@ model_file_path = f"{configs.model_path}/model.keras"
 if os.path.exists(model_file_path):
     print(f"Loading existing model from {model_file_path}")
     try:
-        model = tf.keras.models.load_model(model_file_path, compile=False, safe_mode=False)
-        print("Model loaded successfully.")
+        model = tf.keras.models.load_model(
+            model_file_path,
+            compile=False,
+            safe_mode=False  # Allow loading Lambda layers
+        )
+        print("Model loaded successfully - resuming training")
     except Exception as e:
-        print(f"Failed to load model: {e}")
-        model = None
+        print(f"Failed to load existing model: {e}")
+
 else:
-    model = None
-
-if model is None:
-    print("Creating a new model.")
+    # Creating TensorFlow model architecture
     model = train_model(
-        input_dim=(configs.height, configs.width, 3),
-        output_dim=len(configs.vocab),
+        input_dim = (configs.height, configs.width, 3),
+        output_dim = len(configs.vocab),
     )
+    
+    print("New model created")    
 
-# Compile and train the model
 if model:
+    # Compile the model
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=configs.learning_rate),
-        loss=CTCloss(),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=configs.learning_rate), 
+        loss=CTCloss(), 
         metrics=[CWERMetric(padding_token=len(configs.vocab))],
-        run_eagerly=False
+        run_eagerly=False,
+        steps_per_execution=64,
     )
     model.summary(line_length=110)
 
     callbacks = [
-        EarlyStopping(monitor="val_CER", patience=50, verbose=1, mode="min"),
-        ModelCheckpoint(model_file_path, monitor="val_CER", verbose=1, save_best_only=True, mode="min"),
+        EarlyStopping(monitor="CER", patience=50, verbose=1, mode="min"),
+        ModelCheckpoint(model_file_path, monitor="CER", verbose=1, save_best_only=True, mode="min"),
         TrainLogger(configs.model_path),
         TensorBoard(os.path.join(configs.model_path, "logs"), update_freq=1),
-        ReduceLROnPlateau(monitor="val_CER", factor=0.9, min_delta=1e-10, patience=20, verbose=1, mode="min"),
+        ReduceLROnPlateau(monitor="CER", factor=0.9, min_delta=1e-10, patience=20, verbose=1, mode="min"),
         Model2onnx(model_file_path)
     ]
 

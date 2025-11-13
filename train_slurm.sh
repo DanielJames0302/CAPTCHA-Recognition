@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --output=logs/slurm-%j.out
 #SBATCH --error=logs/slurm_error_%j.err
-#SBATCH --job-name=ray-4243
-#SBATCH --mail-user=e1505950@u.nus.edu.sg
+#SBATCH --job-name=nus-cs4243-project
+#SBATCH --mail-user=e1129786@comp.nus.edu.sg
 #SBATCH --partition=gpu-long
 #SBATCH --gres=gpu:a100-40:1     # or nv:1 -C cuda75
-#SBATCH --time=72:00:00
+#SBATCH --time=24:00:00
 
 export TF_XLA_FLAGS="--tf_xla_auto_jit=0"     # disable XLA JIT (layout transposes)
 export TF_ENABLE_ONEDNN_OPTS=0               # avoid aggressive layout rewrites
@@ -13,7 +13,7 @@ export TF_CUDNN_USE_FRONTEND=0               # bypass cuDNN frontend heuristics
 export TF_DETERMINISTIC_OPS=1                # (optional) stable kernels
 export TF_CUDNN_DETERMINISTIC=1              # (optional) stable kernels
 export TF_FORCE_GPU_ALLOW_GROWTH=true        # avoid full preallocation
-cd "/home/r/rayche/CS4243-CAPTCHA" # change to your project directory
+cd "/home/m/man0302/CS4243/CS4243-CAPTCHA-main" # change to your project directory
 
 # Activate virtual environment (adjust path as needed)
 source cs4243-captcha/bin/activate

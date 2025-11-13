@@ -1,130 +1,101 @@
-import cv2
-import typing
-import numpy as np
 import os
-import time
-from collections import deque
-import onnxruntime as ort
+import logging
+import cv2
+import numpy as np
 import pandas as pd
+import tensorflow as tf
 from tqdm import tqdm
 
 # Import from the new utils directory
+from accuracy import get_errors
+from custom_transformers import GrayscaleTransformer
+from utils.data_provider import ImageResizer
 from utils.text_utils import ctc_decoder, get_cer, get_wer
 from utils.configs import BaseModelConfigs
 
-class FpsWrapper:
-    """ Decorator to calculate the frames per second of a function
-    """
-    def __init__(self, func: typing.Callable):
-        self.func = func
-        self.fps_list = deque([], maxlen=100)
-
-    def __call__(self, *args, **kwargs):
-        start = time.time()
-        results = self.func(self.instance, *args, **kwargs)
-        self.fps_list.append(1 / (time.time() - start))
-        self.instance.fps = np.mean(self.fps_list)
-        return results
-
-    def __get__(self, instance, owner):
-        self.instance = instance
-        return self.__call__.__get__(instance, owner)
-
-
-class OnnxInferenceModel:
-    """ Base class for all inference models that use onnxruntime 
-
-    Attributes:
-        model_path (str, optional): Path to the model folder. Defaults to "".
-        force_cpu (bool, optional): Force the model to run on CPU or GPU. Defaults to GPU.
-        default_model_name (str, optional): Default model name. Defaults to "model.onnx".
-    """
-    def __init__(
-        self, 
-        model_path: str = "",
-        force_cpu: bool = False,
-        default_model_name: str = "model.onnx",
-        *args, **kwargs
-        ):
-        self.model_path = model_path.replace("\\", "/")
-        self.force_cpu = force_cpu
-        self.default_model_name = default_model_name
-
-        # check if model path is a directory with os path
-        if os.path.isdir(self.model_path):
-            self.model_path = os.path.join(self.model_path, self.default_model_name)
-
-        if not os.path.exists(self.model_path):
-            raise Exception(f"Model path ({self.model_path}) does not exist")
-
-        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if ort.get_device() == "GPU" and not force_cpu else ["CPUExecutionProvider"]
-
-        self.model = ort.InferenceSession(self.model_path, providers=providers)
-
-        self.metadata = {}
-        if self.model.get_modelmeta().custom_metadata_map:
-            # add metadata to self object
-            for key, value in self.model.get_modelmeta().custom_metadata_map.items():
-                try:
-                    new_value = eval(value) # in case the value is a list or dict
-                except:
-                    new_value = value
-                self.metadata[key] = new_value
-                
-        # Update providers priority to only CPUExecutionProvider
-        if self.force_cpu:
-            self.model.set_providers(["CPUExecutionProvider"])
-
-        self.input_shapes = [meta.shape for meta in self.model.get_inputs()]
-        self.input_names = [meta.name for meta in self.model._inputs_meta]
-        self.output_names = [meta.name for meta in self.model._outputs_meta]
-
-    def predict(self, data: np.ndarray, *args, **kwargs):
-        raise NotImplementedError
-
-    @FpsWrapper
-    def __call__(self, data: np.ndarray):
-        results = self.predict(data)
-        return results
-
-
-class ImageToWordModel(OnnxInferenceModel):
-    def __init__(self, char_list: typing.Union[str, list], *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class ImageToWordModel:
+    def __init__(self, model_path: str, char_list, width, height):
         self.char_list = char_list
+        self.model = tf.keras.models.load_model(model_path, compile=False, safe_mode=False)
+        self.width = width
+        self.height = height
 
     def predict(self, image: np.ndarray):
-        image = cv2.resize(image, self.input_shapes[0][1:3][::-1])
+        resizer = ImageResizer(self.width, self.height, keep_aspect_ratio=True, padding_color=(255,255,255))
+        image, _ = resizer(image, None)
+
+        grayscaler = GrayscaleTransformer(keep_3_channels=True)
+        image, _ = grayscaler(image, None)
 
         image_pred = np.expand_dims(image, axis=0).astype(np.float32)
-
-        preds = self.model.run(self.output_names, {self.input_names[0]: image_pred})[0]
-
-        text = ctc_decoder(preds, self.char_list)[0]
-
-        return text
+        preds = self.model.predict(image_pred)
+        return ctc_decoder(preds, self.char_list)[0]
 
 # Run test dataset without training
 if __name__ == "__main__":
-    configs = BaseModelConfigs.load("Models/02_captcha_to_text/202510041220/configs.yaml")
+    model_directory = "Models/full_1Aug_2layer"
+    model_path = f"{model_directory}/model.keras"
+    configs = BaseModelConfigs.load(f"{model_directory}/configs.yaml")
 
-    model = ImageToWordModel(model_path=configs.model_path, char_list=configs.vocab)
+    # Ensure model directory exists and configure logging to file
+    os.makedirs(model_directory, exist_ok=True)
+    log_path = os.path.join(model_directory, "inference.txt")
 
-    df = pd.read_csv("Models/02_captcha_to_text/202510041220/val.csv").values.tolist()
+    logger = logging.getLogger("inference")
+    logger.setLevel(logging.INFO)
+    # avoid adding multiple handlers if this file is imported/run multiple times
+    if not logger.handlers:
+        formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+        fh = logging.FileHandler(log_path, mode="a", encoding="utf-8")
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+        # also log to console
+        ch = logging.StreamHandler()
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+        
+    model = ImageToWordModel(model_path=model_path, char_list=configs.vocab, width=configs.width, height=configs.height)
+
+    df = pd.read_csv(f"{model_directory}/val.csv").values.tolist()
 
     accum_cer = []
     accum_wer = []
+    total_correct_chars = 0
+    total_chars = 0
+    total_correct_words = 0
+    total_words = 0
     for image_path, label in tqdm(df):
         image = cv2.imread(image_path.replace("\\", "/"))
 
         prediction_text = model.predict(image)
 
+        S, D, I = get_errors(list(label), list(prediction_text))
+        correct = max(0, len(label) - S - D) # takes into account insertion errors
+        total_correct_chars += correct
+        total_chars += max(len(label), len(prediction_text))
+
+        logger.info(f"Label: {label}, predicted: {prediction_text}, S: {S}, D: {D}, I: {I}, Correct chars: {correct}/{max(len(label), len(prediction_text))}")
+
         cer = get_cer(prediction_text, label)
         wer = get_wer(prediction_text, label)
-        print(f"Image: {image_path}, Label: {label}, Prediction: {prediction_text}, CER: {cer:.3f}, WER: {wer:.3f}")
+        logger.info(f"CER: {cer:.6%}, WER: {wer:.6%}")
+
+        char_accuracy = (correct / max(len(label), len(prediction_text))) * 100
+
+        if char_accuracy == 100.0:
+            total_correct_words += 1
+            word_accuracy = 100.0
+        else:
+            word_accuracy = 0.0
+
+        total_words += 1
+
+        logger.info(f"Character Accuracy: {char_accuracy:.2f}%, Word Accuracy: {word_accuracy:.2f}%\n")
 
         accum_cer.append(cer)
         accum_wer.append(wer)
 
-    print(f"Average CER: {np.average(accum_cer):.3f}")
-    print(f"Average WER: {np.average(accum_wer):.3f}")
+    total_char_accuracy = np.divide(total_correct_chars, total_chars) * 100
+    total_word_accuracy = np.divide(total_correct_words, total_words) * 100
+    logger.info(f"Average Character Accuracy: {total_char_accuracy:.3f}")
+    logger.info(f"Average Word Accuracy: {total_word_accuracy:.3f}")

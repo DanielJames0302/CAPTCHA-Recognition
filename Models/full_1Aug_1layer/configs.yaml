@@ -1,0 +1,13 @@
+batch_size: 128
+dataset_path: Datasets/full/train
+dataset_test_path: Datasets/full/val
+height: 80
+learning_rate: 0.001
+max_text_length: 8
+model_path: Models/full_1Aug_1layer
+train_epochs: 2000
+train_workers: 20
+trained_model_path: Models/202510112239
+use_test_set_for_val: true
+vocab: 0123456789abcdefghijklmnopqrstuvwxyz
+width: 500
