@@ -1,4 +1,4 @@
-# CS4243 CAPTCHA REPO
+# CAPTCHA REPO
 
 ## Requirements
 - Python 3
